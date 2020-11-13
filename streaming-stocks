@@ -1,0 +1,331 @@
+import urllib
+import json
+import requests
+import dateutil.parser
+import datetime
+from datetime import datetime
+import time
+import math
+from splinter import Browser
+import statistics
+stock_name = ["SPY", "IVV"]
+stockNameA = 0
+stockNameB = 1 
+stuff = stock_name[stockNameA] + "," + stock_name[stockNameB]
+data_size = 50000
+ask_arr_A = []
+ask_arr_B = []
+ask_arr3_A = []
+ask_arr3_B = []
+ask_arr5_A = []
+ask_arr5_B = []
+ask_arr7_A = []
+ask_arr7_B = []
+ask_arr9_A = []
+ask_arr9_B = []
+ask_arr11_A = []
+ask_arr11_B = []
+ask_arr13_A = []
+ask_arr13_B = []
+ask_arr15_A = []
+ask_arr15_B = []
+ask_arr17_A = []
+ask_arr17_B = []
+ask_arr19_A = []
+ask_arr19_B = []
+bid_arr_A = []
+bid_arr_B = []
+bid_arr3_A = []
+bid_arr3_B = []
+bid_arr5_A = []
+bid_arr5_B = []
+bid_arr7_A = []
+bid_arr7_B = []
+bid_arr9_A = []
+bid_arr9_B = []
+bid_arr11_A = []
+bid_arr11_B = []
+bid_arr13_A = []
+bid_arr13_B = []
+bid_arr15_A = []
+bid_arr15_B = []
+bid_arr17_A = []
+bid_arr17_B = []
+bid_arr19_A = []    
+bid_arr19_B = []
+change_A_3 = [0]
+Time_diff_1 = 1 # This is the check for second condition after one second
+Time_diff_2 = 10 # This is the seconds at least between each row.
+T_diff = Time_diff_2
+timeStamp_arr = list(range(0, data_size))
+
+url = r"https://api.tdameritrade.com/v1/oauth2/token"
+
+# define the headers
+headers = {"Content-Type":"application/x-www-form-urlencoded"}
+re_token = "5r+KB7QtKZpeTxwQF6vib2gki8C0o1CJ41jukHLPU9grht5IJ6Sb24XTpn3AphOQMerqTsnW7Ds8ebKOuva8NMVLS7otAsvV8xXVwYPhgossMQMQkfEIMrmUVKa6vJWwJ/DcMb2tgQSsQuAfGy+Rlm0OEkTF9O6c6OaRsoDgeMwxtrJ9+XF58hiJpXm4PteCrCDfMyKb+8pHa/rpB637z6a6VEyvJtzCDcU+fZTSOcsXh/+JNXHZ0Nh2MsYaESS7uk0wyvMnmeU9W9T535lDqFdqsaKl21T6NSKs4ufeDKMrrCLfi/+WpHL2wbwFradwDRevR0fH967Udn0cXf63GsSZNT+cjZuQLDQ8POkV7N2pqF2Vj/oc+B/ZBEj5X6AP9BlUsStHnjJSvn5ZBZREjRAo2PRhYvOya8dUzWsATZDmFohlXRu4NdfI3b1100MQuG4LYrgoVi/JHHvljG7DmNHvcmldppXXx9vgcZFDlDV2byim3yGoY9/z+RocF+pZLpTvWhq1bdvVcc6A9nHAAH1oTOE+sa4zXH/s6qwpKG1MyHwMIcP3RAs/CDrmPudzIdtKCHe1Qhx10mIdhNGzTKq6xjqM5EXfutcwKdnJitviIXSzewQWo3VHKuSJDzgkc/Gr4I3qcolBMZOD39wnfjW3DQisDRO6OOsTILzv9ypR8KmVuopQ/oUqumrtcMVpxB8rFWuI781esZzyfhODiEWgJF2unc/uMjiwMGyO0Edk5wDEXNNSzxwBqiiIV/TeBzohmDN8uD+KKoe1cjIZVRUzJAK1NDS1kQ9FT2XinvEcTUtMdihSR3wZo/TECdycxjdM9x2+fBTr4lkS3IVo9V0bhAlgkD99iiUuFc7gBmJaQM2eDYrOc+/5hv/oEnoCv8/oOUxfxDc=212FD3x19z9sWBHDJACbC00B75E"
+#define the payload
+payload = {'grant_type': 'refresh_token',
+            'refresh_token': re_token,
+            'client_id': client_id,
+            'redirect_uri':'https://localhost'}
+
+# post the data to get the token
+authReply = requests.post(url, headers = headers, data = payload)
+
+# convert it to a dictionary
+decoded_content = authReply.json()
+
+headers['Authorization']='Bearer '+str(decoded_content['access_token'])
+
+def unix_time_mills(dt):
+
+    # grab the starting point, so time '0'
+    epoch = datetime.utcfromtimestamp(0)
+
+    return (dt - epoch).total_seconds() * 1000.0
+
+# we need to go to the User Principals endpoint to get the info we need to make a streaming request
+endpoint = "https://api.tdameritrade.com/v1/userprincipals"
+
+# get out access token
+# headers = get_access_token()
+
+# this endpoint, requires fields which are separated by ','
+params = {'fields': 'streamerSubscriptionKeys,streamerConnectionInfo'}
+
+# make a request
+content = requests.get(url = endpoint, params = params, headers = headers)
+userPrincipalsResponse = content.json()
+
+# we need to get the timestamp in order to make our next request, but it needs to be parsed
+tokenTimeStamp = userPrincipalsResponse['streamerInfo']['tokenTimestamp']
+date = dateutil.parser.parse(tokenTimeStamp, ignoretz = True)
+tokenTimeStampAsMs = unix_time_mills(date)
+
+# we need to define our credentials that we will need to make our stream
+credentials = {"userid": userPrincipalsResponse['accounts'][0]['accountId'],
+               "token": userPrincipalsResponse['streamerInfo']['token'],
+               "company": userPrincipalsResponse['accounts'][0]['company'],
+               "segment": userPrincipalsResponse['accounts'][0]['segment'],
+               "cddomain": userPrincipalsResponse['accounts'][0]['accountCdDomainId'],
+               "usergroup": userPrincipalsResponse['streamerInfo']['userGroup'],
+               "accesslevel": userPrincipalsResponse['streamerInfo']['accessLevel'],
+               "authorized": "Y",
+               "timestamp": int(tokenTimeStampAsMs),
+               "appid": userPrincipalsResponse['streamerInfo']['appId'],
+               "acl": userPrincipalsResponse['streamerInfo']['acl'] }
+
+userPrincipalsResponse
+# define a request 
+login_request = {"requests": [{"service":"ADMIN",
+                              "requestid": "0",
+                              "command": "LOGIN",
+                              "account": userPrincipalsResponse['accounts'][0]['accountId'],
+                              "source": userPrincipalsResponse['streamerInfo']['appId'],
+                              "parameters": {"credential": urllib.parse.urlencode(credentials),
+                                             "token": userPrincipalsResponse['streamerInfo']['token'],
+                                             "version": "1.0"}}]}
+
+data_request= {"requests": [{"service": "QUOTE", 
+                             "requestid": "1", 
+                             "command": "SUBS", 
+                             "account": userPrincipalsResponse['accounts'][0]['accountId'], 
+                             "source": userPrincipalsResponse['streamerInfo']['appId'], 
+                             "parameters": {"keys": stuff,
+                                            "fields": "0,1,2,50"}}]}                    
+     
+# create it into a JSON string, as the API expects a JSON string.
+login_encoded = json.dumps(login_request)
+data_encoded = json.dumps(data_request)
+
+import websockets
+import asyncio
+# import pyodbc
+
+class WebSocketClient():
+
+    async def connect(self):
+        uri = "wss://" + userPrincipalsResponse['streamerInfo']['streamerSocketUrl'] + "/ws"
+        self.connection = await websockets.client.connect(uri)
+
+        # if all goes well, Let the user know.
+        if self.connection.open:
+            # print('Connection established. Client correctly connected')
+            return self.connection
+    async def sendMessage(self, message):
+        '''
+            Sending message to webSocket server
+        '''
+        await self.connection.send(message)
+
+
+    async def receiveMessage(self, connection):
+        ''' 
+            Receiving all server messages and handle them
+        '''
+        count = 0
+        nTime = 0
+        count3 = 0
+        while True:
+            
+            count0 = 0
+            countA = 0
+            countB = 0
+
+
+            try:
+
+                #grab and decode the message
+                message = await self.connection.recv()
+                message_decoded = json.loads(message)
+
+                # check if the response contains a key called data if so then it contains the info we want to insert.
+                if 'data' in message_decoded.keys():
+                    A = message_decoded['data'][0]['content']                    
+                    if len(A) == 2 and '50' in A[0] and '50' in A[1]:
+                        if A[0]['50'] < A[1]['50']:
+                            timeStamp_arr[nTime] = A[1]['50']
+                        else:
+                            timeStamp_arr[nTime] = A[0]['50']
+                    if len(A) == 1 and '50' in A[0]:
+                        timeStamp_arr[nTime] = A[0]['50']
+                    if(nTime == 0 or (nTime > 0 and timeStamp_arr[nTime] - timeStamp_arr[nTime-1] > T_diff)): 
+                        nTime += 1
+
+                        # timeStamp_arr2[nTime] = timeStamp_arr[nTime] + 1000
+                        if len(A[0]) > 4:
+                            bid_arr_A.append(message_decoded['data'][0]['content'][0]['1'])
+                            bid_arr_B.append(message_decoded['data'][0]['content'][1]['1'])
+                            ask_arr_A.append(message_decoded['data'][0]['content'][0]['2']) 
+                            ask_arr_B.append(message_decoded['data'][0]['content'][1]['2'])
+                            
+                        if len(A) == 2 and len(A[0]) == 4:
+                            bid_arr_A.append(message_decoded['data'][0]['content'][0]['1'])
+                            ask_arr_A.append(message_decoded['data'][0]['content'][0]['2'])
+                        if len(A) == 2 and len(A[1]) == 4:
+                            bid_arr_B.append(message_decoded['data'][0]['content'][1]['1'])
+                            ask_arr_B.append(message_decoded['data'][0]['content'][1]['2'])
+                        if len(A) == 2 and len(A[0]) == 3:
+                            if '1' in A[0]:
+                                bid_arr_A.append(message_decoded['data'][0]['content'][0]['1'])
+                                ask_arr_A.append(ask_arr_A[-1])
+                            elif '2' in A[0]:
+                                ask_arr_A.append(message_decoded['data'][0]['content'][0]['2'])
+                                bid_arr_A.append(bid_arr_A[-1])
+                        if len(A) == 2 and len(A[1]) == 3:
+                            if '1' in A[1]:
+                               bid_arr_B.append(message_decoded['data'][0]['content'][1]['1'])
+                               ask_arr_B.append(ask_arr_B[-1])
+                            elif '2' in A[1]:
+                                ask_arr_B.append(message_decoded['data'][0]['content'][1]['2'])
+                                bid_arr_B.append(bid_arr_B[-1])
+                        if len(A) == 2 and len(A[0]) == 2:
+                            bid_arr_A.append(bid_arr_A[-1])
+                            ask_arr_A.append(ask_arr_A[-1])
+                        if len(A) == 2 and len(A[1]) == 2:
+                            bid_arr_B.append(bid_arr_B[-1])
+                            ask_arr_B.append(ask_arr_B[-1])
+                        elif len(A) == 1:
+                            if len(A[0]) == 4:
+                                if stock_name[stockNameA] in A[0]['key']:
+                                    bid_arr_A.append(message_decoded['data'][0]['content'][0]['1'])
+                                    ask_arr_A.append(message_decoded['data'][0]['content'][0]['2'])
+                                    bid_arr_B.append(bid_arr_B[-1])
+                                    ask_arr_B.append(ask_arr_B[-1])
+                                elif stock_name[stockNameB] in A[0]['key']:
+                                    bid_arr_A.append(bid_arr_A[-1])
+                                    ask_arr_A.append(ask_arr_A[-1])
+                                    bid_arr_B.append(message_decoded['data'][0]['content'][0]['1'])
+                                    ask_arr_B.append(message_decoded['data'][0]['content'][0]['2'])
+                            elif len(A[0]) == 3:
+                                if stock_name[stockNameA] in A[0]['key'] and '1' in A[0]:
+                                    bid_arr_A.append(message_decoded['data'][0]['content'][0]['1'])
+                                    ask_arr_A.append(ask_arr_A[-1])
+                                    bid_arr_B.append(bid_arr_B[-1])
+                                    ask_arr_B.append(ask_arr_B[-1])
+                                elif stock_name[stockNameA] in A[0]['key'] and '2' in A[0]:
+                                    bid_arr_A.append(bid_arr_A[-1])
+                                    ask_arr_A.append(message_decoded['data'][0]['content'][0]['2'])
+                                    bid_arr_B.append(bid_arr_B[-1])
+                                    ask_arr_B.append(ask_arr_B[-1])
+                                elif stock_name[stockNameB] in A[0]['key'] and '1' in A[0]:
+                                    bid_arr_A.append(bid_arr_A[-1])
+                                    ask_arr_A.append(ask_arr_A[-1])
+                                    bid_arr_B.append(message_decoded['data'][0]['content'][0]['1'])
+                                    ask_arr_B.append(ask_arr_B[-1])
+                                elif stock_name[stockNameB] in A[0]['key'] and '2' in A[0]:
+                                    bid_arr_A.append(bid_arr_A[-1])
+                                    ask_arr_A.append(ask_arr_A[-1])
+                                
+                                    bid_arr_B.append(bid_arr_B[-1])
+                                    ask_arr_B.append(message_decoded['data'][0]['content'][0]['2'])
+                            elif len(A[0]) == 2:
+                                bid_arr_A.append(bid_arr_A[-1])
+                                ask_arr_A.append(ask_arr_A[-1])
+                                bid_arr_B.append(bid_arr_B[-1])
+                                ask_arr_B.append(ask_arr_B[-1])
+                    
+                        if countA > 0 or countB > 0 or count0 > 0:
+                            count += 1
+                            count3 +=1
+                        
+                        # if count3 == 3:
+                        ask_arr3_A = ask_arr_A[::3]
+                        ask_arr3_B = ask_arr_B[::3]
+                        ask_arr3_B = ask_arr_B[::3]
+                            # count3 = 0
+                        ask_arr5_A = ask_arr_A[::5]
+                        ask_arr7_A = ask_arr_A[::7]
+                        ask_arr9_A = ask_arr_A[::9]
+                        ask_arr11_A = ask_arr_A[::11]
+                        ask_arr13_A = ask_arr_A[::13]
+                        ask_arr15_A = ask_arr_A[::15]
+                        ask_arr17_A = ask_arr_A[::17]
+                        ask_arr19_A = ask_arr_A[::19]
+                        global change_A_3
+                        if len(ask_arr3_A) > 1:
+                            change = ask_arr3_A[-1] / ask_arr3_A[-2] - 1
+                            change_A_3.append(change)
+                        
+
+# "ASK_A_7", ask_arr7_A[-1],"ASK_A_9", ask_arr9_A[-1], "ASK_A_11", ask_arr11_A[-1], "ASK_A_13", ask_arr13_A[-1],"ASK_A_15", ask_arr15_A[-1], "ASK_A_17",ask_arr17_A[-1], "ASK_A_19",ask_arr19_A[-1]
+ # ask_arr5_A[-1]
+                    
+                        if len(A) == 2:
+                            print( "row", len(ask_arr_A), "ASK_A_1", ask_arr_A[-1], "ASK_A_3",ask_arr3_A[-1], "ASK_A_5", ask_arr5_A[-1], 'change_A_3', "{0:.4%}".format(change_A_3[-1]) )
+                        else:
+                            print( "row", len(ask_arr_A), "ASK_A_1", ask_arr_A[-1], "ASK_A_3",ask_arr3_A[-1], "ASK_A_5", ask_arr5_A[-1], 'change_A_3', "{0:.4%}".format(change_A_3[-1])  )
+
+
+
+
+            except websockets.exceptions.ConnectionClosed:
+                print('Connection with server closed')
+                break
+import nest_asyncio
+nest_asyncio.apply()
+
+
+if __name__ == '__main__':
+
+    # creating client object
+    client = WebSocketClient()
+
+    loop = asyncio.get_event_loop()
+
+
+    # Start connection and get client connection protocol
+    connection = loop.run_until_complete(client.connect())
+
+    # start listener and hearbeat
+    tasks = [asyncio.ensure_future(client.receiveMessage(connection)),
+             asyncio.ensure_future(client.sendMessage(login_encoded)),
+             asyncio.ensure_future(client.receiveMessage(connection)),
+             asyncio.ensure_future(client.sendMessage(data_encoded)),
+             asyncio.ensure_future(client.receiveMessage(connection))]
+
+    loop.run_until_complete(asyncio.wait(tasks))
+
+        
+
